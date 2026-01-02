@@ -8,14 +8,14 @@ const Connectimi_logo = () => {
         alignItems: "center",
         gap: "10px",
         padding: "12px 16px",
-        backgroundColor: "#ffffff",
+        // backgroundColor: "#ffffff",
         width: "fit-content",
         // borderBottom: "1px solid #e0e0e0",
         fontFamily: "Segoe UI, Roboto, Arial, sans-serif",
       }}
     >
       <img
-        src="public/Connectimi_logo.png"
+        src="/Connectimi_logo.png"
         alt="Connectimi Logo"
         style={{
           width: "36px",
