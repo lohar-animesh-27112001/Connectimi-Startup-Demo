@@ -11,7 +11,7 @@ function Signup() {
     e.preventDefault();
     if (!name || !email || !password) return;
     // In a real app you'd call your signup API here
-    navigate("/home");
+    navigate("/profile");
   }
 
   return (

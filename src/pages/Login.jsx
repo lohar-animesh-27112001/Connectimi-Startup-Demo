@@ -10,7 +10,7 @@ function Login() {
     e.preventDefault();
     if (!email || !password) return;
     // In a real app you'd call your auth API here
-    navigate("/home");
+    navigate("/profile");
   }
 
   return (

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-function Home() {
+function Profile() {
   return (
     <div className="auth-container">
       <div className="auth-form">
@@ -12,4 +12,4 @@ function Home() {
   );
 }
 
-export default Home;
+export default Profile;
