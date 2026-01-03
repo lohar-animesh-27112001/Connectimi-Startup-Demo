@@ -55,6 +55,7 @@ body {
   position: absolute;
   left: 12px;
   color: #666;
+  z-index: 1;
 }
 
 .search-input {
@@ -66,6 +67,7 @@ body {
   background-color: #eef3f8;
   font-size: 14px;
   transition: all 0.3s;
+  position: relative;
 }
 
 .search-input:focus {
@@ -141,6 +143,10 @@ body {
 .nav-item.active .nav-label {
   color: #0a66c2;
   font-weight: 600;
+}
+
+.me-dropdown {
+  position: relative;
 }
 
 /* Dropdown Menu */
@@ -280,6 +286,7 @@ body {
   transform: translateX(-50%);
   text-align: center;
   z-index: 10;
+  width: 100%;
 }
 
 .image-upload-btn {
@@ -589,26 +596,14 @@ body {
   font-weight: 600;
 }
 
-.form-section h5 {
-  margin-bottom: 12px;
-  color: #0a66c2;
-  font-size: 16px;
-  font-weight: 500;
-}
-
 .form-row {
   display: flex;
   gap: 12px;
   margin-bottom: 12px;
+  align-items: center;
 }
 
-@media (max-width: 768px) {
-  .form-row {
-    flex-direction: column;
-  }
-}
-
-.form-input {
+.form-row input {
   flex: 1;
   padding: 10px;
   border: 1px solid #d0d0d0;
@@ -617,70 +612,13 @@ body {
   background: white;
 }
 
-.form-input:focus {
+.form-row input:focus {
   outline: none;
   border-color: #0a66c2;
   box-shadow: 0 0 0 2px rgba(10, 102, 194, 0.2);
 }
 
-.form-input.full-width {
-  width: 100%;
-}
-
-.form-textarea {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #d0d0d0;
-  border-radius: 4px;
-  font-size: 14px;
-  resize: vertical;
-  background: white;
-}
-
-.form-textarea:focus {
-  outline: none;
-  border-color: #0a66c2;
-  box-shadow: 0 0 0 2px rgba(10, 102, 194, 0.2);
-}
-
-.edit-item {
-  background: #f9f9f9;
-  padding: 16px;
-  border-radius: 8px;
-  margin-bottom: 16px;
-  border: 1px solid #e0e0e0;
-}
-
-.add-item-form {
-  background: #f0f7ff;
-  padding: 20px;
-  border-radius: 8px;
-  border: 1px dashed #0a66c2;
-  margin-top: 20px;
-}
-
-/* Edit Form Buttons */
-.remove-btn {
-  background: #ff4444;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 12px;
-  transition: background 0.2s;
-}
-
-.remove-btn:hover {
-  background: #cc0000;
-  transform: translateY(-1px);
-}
-
-.add-btn {
+.btn-add, .btn-add-skill {
   background: #0a66c2;
   color: white;
   border: none;
@@ -688,27 +626,48 @@ body {
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 12px;
   transition: background 0.2s;
+  white-space: nowrap;
 }
 
-.add-btn:hover {
+.btn-add:hover, .btn-add-skill:hover {
   background: #004182;
   transform: translateY(-1px);
 }
 
+.btn-remove {
+  background: #ff4444;
+  color: white;
+  border: none;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  width: 36px;
+  height: 36px;
+}
+
+.btn-remove:hover {
+  background: #cc0000;
+  transform: translateY(-1px);
+}
+
 /* Skills Edit Section */
-.skills-edit-container {
+.skills-edit {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 16px;
 }
 
-.skill-edit-item {
+.skill-tag {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -718,7 +677,7 @@ body {
   font-size: 14px;
 }
 
-.skill-remove-btn {
+.skill-remove {
   background: none;
   border: none;
   color: #666;
@@ -731,17 +690,17 @@ body {
   transition: color 0.2s;
 }
 
-.skill-remove-btn:hover {
+.skill-remove:hover {
   color: #ff4444;
 }
 
-.add-skill-form {
+.skill-input-container {
   display: flex;
   gap: 8px;
   margin-top: 12px;
 }
 
-.skill-input {
+.skill-input-container input {
   flex: 1;
   padding: 10px;
   border: 1px solid #d0d0d0;
@@ -750,27 +709,9 @@ body {
   background: white;
 }
 
-.skill-input:focus {
+.skill-input-container input:focus {
   outline: none;
   border-color: #0a66c2;
-}
-
-.add-skill-btn {
-  background: #0a66c2;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  transition: background 0.2s;
-}
-
-.add-skill-btn:hover {
-  background: #004182;
 }
 
 .form-actions {
@@ -1065,6 +1006,11 @@ body {
   transform: translateY(-2px);
 }
 
+.speed-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .voice-selector select {
   width: 100%;
   padding: 12px 16px;
@@ -1091,6 +1037,36 @@ body {
   background: #667eea;
   color: white;
   padding: 10px;
+}
+
+.voice-selector select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Speech Warning */
+.speech-warning {
+  background: rgba(255, 87, 34, 0.2);
+  border: 1px solid rgba(255, 87, 34, 0.4);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 12px;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.speech-warning p {
+  color: #ffccbc;
+  font-size: 14px;
+  margin: 0;
+}
+
+.speech-warning-small {
+  font-size: 12px;
+  color: #ffccbc;
+  margin-top: 8px;
+  text-align: center;
 }
 
 /* Summary Preview */
@@ -1495,6 +1471,19 @@ body {
   .speed-option {
     flex: 0 0 calc(33.333% - 8px);
   }
+
+  .form-row {
+    flex-direction: column;
+  }
+
+  .profile-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn-connect, .btn-message, .btn-more {
+    width: 100%;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1607,28 +1596,6 @@ body {
   }
 }
 
-/* Tooltip for icons */
-[title] {
-  position: relative;
-}
-
-[title]:hover::after {
-  content: attr(title);
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #191919;
-  color: white;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  white-space: nowrap;
-  margin-bottom: 8px;
-  z-index: 1002;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 10px;
@@ -1675,46 +1642,7 @@ body {
   }
 }
 
-/* Error State */
-.error-message {
-  background: #ffe6e6;
-  border: 1px solid #ff4444;
-  color: #cc0000;
-  padding: 16px;
-  border-radius: 8px;
-  margin: 16px 0;
-  text-align: center;
-  animation: fadeIn 0.3s ease-out;
-}
-
-.error-message button {
-  background: #ff4444;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  margin-top: 8px;
-  cursor: pointer;
-  transition: background 0.3s;
-}
-
-.error-message button:hover {
-  background: #cc0000;
-}
-
-/* Success Message */
-.success-message {
-  background: #e6ffe6;
-  border: 1px solid #00cc00;
-  color: #008000;
-  padding: 16px;
-  border-radius: 8px;
-  margin: 16px 0;
-  text-align: center;
-  animation: fadeIn 0.3s ease-out;
-}
-
-/* Placeholder styling for empty states */
+/* Empty State Messages */
 .empty-state {
   text-align: center;
   padding: 40px 20px;
@@ -1830,5 +1758,26 @@ body {
   .year,
   .description {
     color: #aaa;
+  }
+
+  .speech-controls {
+    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+  }
+
+  .edit-form {
+    background: #2d2d2d;
+    border-color: #444;
+  }
+
+  .form-group input,
+  .form-group textarea {
+    background: #333;
+    color: #fff;
+    border-color: #555;
+  }
+
+  .skill-tag {
+    background: linear-gradient(135deg, #2d3748, #4a5568);
+    color: #90cdf4;
   }
 }

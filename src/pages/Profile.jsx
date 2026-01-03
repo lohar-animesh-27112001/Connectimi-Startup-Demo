@@ -9,7 +9,10 @@ import {
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import './Profile.css';
-import Connectimi_logo from './connectimi_logo_page';
+
+// IMPORTANT: You need to create or verify this component exists
+// If Connectimi_logo doesn't exist, replace with a logo component or remove
+import Connectimi_logo from '../components/Connectimi_logo';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -52,6 +55,7 @@ const Profile = () => {
   const [voiceSpeed, setVoiceSpeed] = useState(1.0);
   const [selectedVoice, setSelectedVoice] = useState(null);
   const [availableVoices, setAvailableVoices] = useState([]);
+  const [isSpeechSupported, setIsSpeechSupported] = useState(true);
   
   // State for temporary edit data
   const [editData, setEditData] = useState({ 
@@ -69,12 +73,21 @@ const Profile = () => {
   useEffect(() => {
     fetchProfileData();
     initializeSpeechSynthesis();
+    
+    // Cleanup function
+    return () => {
+      stopSpeaking();
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
   }, []);
 
   // Initialize speech synthesis
   const initializeSpeechSynthesis = () => {
     if ('speechSynthesis' in window) {
       speechSynthesisRef.current = window.speechSynthesis;
+      setIsSpeechSupported(true);
       
       // Load available voices
       const loadVoices = () => {
@@ -87,13 +100,16 @@ const Profile = () => {
           (voice.name.includes('Google') || voice.name.includes('Samantha') || voice.name.includes('Daniel'))
         ) || voices[0];
         
-        setSelectedVoice(preferredVoice);
+        if (preferredVoice) {
+          setSelectedVoice(preferredVoice);
+        }
       };
       
       loadVoices();
       speechSynthesisRef.current.onvoiceschanged = loadVoices;
     } else {
       console.warn('Speech synthesis not supported in this browser');
+      setIsSpeechSupported(false);
     }
   };
 
@@ -103,12 +119,11 @@ const Profile = () => {
     
     try {
       // Simulate AI API call - Replace with actual AI service
-      // Example: OpenAI GPT, Hugging Face, or your own ML model
       const aiSummary = await simulateAISummary(profileData);
       setProfileSummary(aiSummary);
       
       // Start speaking automatically after generation
-      if (aiSummary) {
+      if (aiSummary && isSpeechSupported) {
         speakText(aiSummary);
       }
     } catch (error) {
@@ -116,7 +131,9 @@ const Profile = () => {
       // Fallback to manual summary
       const fallbackSummary = createManualSummary();
       setProfileSummary(fallbackSummary);
-      speakText(fallbackSummary);
+      if (isSpeechSupported) {
+        speakText(fallbackSummary);
+      }
     } finally {
       setIsSummarizing(false);
     }
@@ -142,7 +159,7 @@ const Profile = () => {
         ${profile.name.split(' ')[0]} has ${profile.connections} professional connections and their profile has been viewed ${profile.profileViews} times.`;
         
         resolve(summary);
-      }, 1500); // Simulate API delay
+      }, 1500);
     });
   };
 
@@ -165,7 +182,7 @@ const Profile = () => {
 
   // Text-to-speech functionality
   const speakText = (text) => {
-    if (!speechSynthesisRef.current) {
+    if (!speechSynthesisRef.current || !isSpeechSupported) {
       console.warn('Speech synthesis not available');
       return;
     }
@@ -187,29 +204,17 @@ const Profile = () => {
     let startTime = Date.now();
     const estimatedDuration = (text.length / 150) * 60 * 1000; // Rough estimate
     
+    let progressInterval;
+    
     utterance.onstart = () => {
       setIsSpeaking(true);
       setIsPaused(false);
       setSpeechProgress(0);
-    };
-    
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      setIsPaused(false);
-      setSpeechProgress(100);
-      setTimeout(() => setSpeechProgress(0), 1000);
-    };
-    
-    utterance.onpause = () => {
-      setIsPaused(true);
-    };
-    
-    utterance.onresume = () => {
-      setIsPaused(false);
+      startTime = Date.now();
     };
     
     // Update progress
-    const progressInterval = setInterval(() => {
+    progressInterval = setInterval(() => {
       if (isSpeaking && !isPaused) {
         const elapsed = Date.now() - startTime;
         const progress = Math.min((elapsed / estimatedDuration) * 100, 100);
@@ -225,25 +230,32 @@ const Profile = () => {
       setTimeout(() => setSpeechProgress(0), 1000);
     };
     
+    utterance.onerror = () => {
+      clearInterval(progressInterval);
+      setIsSpeaking(false);
+      setIsPaused(false);
+      setSpeechProgress(0);
+    };
+    
     speechSynthesisRef.current.speak(utterance);
   };
 
   const pauseSpeaking = () => {
-    if (speechSynthesisRef.current && isSpeaking) {
+    if (speechSynthesisRef.current && isSpeaking && isSpeechSupported) {
       speechSynthesisRef.current.pause();
       setIsPaused(true);
     }
   };
 
   const resumeSpeaking = () => {
-    if (speechSynthesisRef.current && isPaused) {
+    if (speechSynthesisRef.current && isPaused && isSpeechSupported) {
       speechSynthesisRef.current.resume();
       setIsPaused(false);
     }
   };
 
   const stopSpeaking = () => {
-    if (speechSynthesisRef.current) {
+    if (speechSynthesisRef.current && isSpeechSupported) {
       speechSynthesisRef.current.cancel();
       setIsSpeaking(false);
       setIsPaused(false);
@@ -253,7 +265,7 @@ const Profile = () => {
 
   const changeVoiceSpeed = (speed) => {
     setVoiceSpeed(speed);
-    if (isSpeaking) {
+    if (isSpeaking && profileSummary) {
       stopSpeaking();
       setTimeout(() => speakText(profileSummary), 100);
     }
@@ -266,15 +278,12 @@ const Profile = () => {
     localStorage.removeItem('userData');
     sessionStorage.clear();
     document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    navigate('/login');
+    navigate('/');
   };
-
-  // Mock API endpoint
-  const API_URL = 'https://api.example.com/profile';
 
   const fetchProfileData = async () => {
     try {
-      // Mock data
+      // Mock data - replace with actual API call
       const mockData = {
         name: 'Alex Johnson',
         headline: 'Senior Software Engineer at TechCorp',
@@ -349,11 +358,17 @@ const Profile = () => {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Clean up previous preview URL if exists
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+    }
+
     const previewUrl = URL.createObjectURL(file);
     setImagePreview(previewUrl);
     
     setIsUploading(true);
     try {
+      // Simulate upload delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       setEditData(prev => ({
         ...prev,
@@ -369,13 +384,14 @@ const Profile = () => {
   // Handle edit save
   const handleSave = async () => {
     try {
-      setProfileData({ ...editData });
-      setIsEditing(false);
-      
+      // Clean up image preview URL
       if (imagePreview) {
         URL.revokeObjectURL(imagePreview);
         setImagePreview('');
       }
+      
+      setProfileData({ ...editData });
+      setIsEditing(false);
       
       console.log('Profile saved:', editData);
     } catch (error) {
@@ -482,7 +498,9 @@ const Profile = () => {
   const Navbar = () => (
     <nav className="navbar">
       <div className="navbar-left">
-        <Connectimi_logo/>
+        {/* IMPORTANT: If Connectimi_logo doesn't exist, replace with: */}
+        {/* <div className="logo">Connectimi</div> */}
+        <Connectimi_logo />
         <div className="search-bar">
           <FaSearch className="search-icon" />
           <input 
@@ -501,12 +519,16 @@ const Profile = () => {
         <NavItem icon={<FaBell />} label="Notifications" active={false} />
         
         {/* Me dropdown */}
-        <div className="nav-item" onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
+        <div className="nav-item me-dropdown" onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
           <div className="nav-icon">
             <img 
-              src={profileData.profileImage} 
+              src={profileData.profileImage || "https://via.placeholder.com/32"} 
               alt="Profile" 
               className="nav-profile-img"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = "https://via.placeholder.com/32";
+              }}
             />
             <FaCaretDown size={12} />
           </div>
@@ -515,10 +537,18 @@ const Profile = () => {
           {isDropdownOpen && (
             <div className="dropdown-menu">
               <div className="dropdown-header">
-                <img src={profileData.profileImage} alt="Profile" className="dropdown-profile-img" />
+                <img 
+                  src={profileData.profileImage || "https://via.placeholder.com/64"} 
+                  alt="Profile" 
+                  className="dropdown-profile-img"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = "https://via.placeholder.com/64";
+                  }}
+                />
                 <div>
-                  <h4>{profileData.name}</h4>
-                  <p>{profileData.headline}</p>
+                  <h4>{profileData.name || 'User Name'}</h4>
+                  <p>{profileData.headline || 'Your headline'}</p>
                 </div>
               </div>
               <div className="dropdown-item" onClick={() => navigate('/profile')}>
@@ -545,7 +575,7 @@ const Profile = () => {
   );
 
   const NavItem = ({ icon, label, active }) => (
-    <div className={`nav-item ${active ? 'active' : ''}`}>
+    <div className={`nav-item ${active ? 'active' : ''}`} onClick={() => console.log(`Navigate to ${label}`)}>
       <div className="nav-icon">{icon}</div>
       <span className="nav-label">{label}</span>
     </div>
@@ -582,13 +612,13 @@ const Profile = () => {
           <button 
             className="speech-btn play-btn" 
             onClick={() => profileSummary ? speakText(profileSummary) : generateProfileSummary()}
-            disabled={isSummarizing}
+            disabled={isSummarizing || !isSpeechSupported}
           >
             {isSummarizing ? 'Generating...' : <><FaPlay /> Listen to Profile</>}
           </button>
         )}
         
-        <button className="speech-btn stop-btn" onClick={stopSpeaking}>
+        <button className="speech-btn stop-btn" onClick={stopSpeaking} disabled={!isSpeechSupported}>
           <FaVolumeMute /> Stop
         </button>
       </div>
@@ -602,6 +632,7 @@ const Profile = () => {
                 key={speed}
                 className={`speed-option ${voiceSpeed === speed ? 'active' : ''}`}
                 onClick={() => changeVoiceSpeed(speed)}
+                disabled={!isSpeechSupported}
               >
                 {speed}x
               </button>
@@ -609,7 +640,7 @@ const Profile = () => {
           </div>
         </div>
         
-        {availableVoices.length > 0 && (
+        {availableVoices.length > 0 && isSpeechSupported && (
           <div className="voice-selector">
             <label>Voice:</label>
             <select 
@@ -618,6 +649,7 @@ const Profile = () => {
                 const voice = availableVoices.find(v => v.name === e.target.value);
                 setSelectedVoice(voice);
               }}
+              disabled={!isSpeechSupported}
             >
               {availableVoices.filter(v => v.lang.includes('en')).map(voice => (
                 <option key={voice.name} value={voice.name}>
@@ -629,6 +661,12 @@ const Profile = () => {
         )}
       </div>
       
+      {!isSpeechSupported && (
+        <div className="speech-warning">
+          <p>Text-to-speech is not supported in your browser.</p>
+        </div>
+      )}
+      
       {profileSummary && (
         <div className="summary-preview">
           <h5>Summary Preview:</h5>
@@ -636,12 +674,334 @@ const Profile = () => {
           <button 
             className="regenerate-btn"
             onClick={generateProfileSummary}
-            disabled={isSummarizing}
+            disabled={isSummarizing || !isSpeechSupported}
           >
             <FaRobot /> Regenerate Summary
           </button>
         </div>
       )}
+    </div>
+  );
+
+  // Complete Edit Form Component
+  const EditForm = () => (
+    <div className="edit-form">
+      <h3>Edit Profile Information</h3>
+      
+      <div className="form-grid">
+        <div className="form-group">
+          <label>Name</label>
+          <input
+            type="text"
+            value={editData.name}
+            onChange={(e) => handleInputChange('name', e.target.value)}
+            placeholder="Enter your name"
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>Headline</label>
+          <input
+            type="text"
+            value={editData.headline}
+            onChange={(e) => handleInputChange('headline', e.target.value)}
+            placeholder="e.g., Senior Software Engineer at Company"
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>Location</label>
+          <input
+            type="text"
+            value={editData.location}
+            onChange={(e) => handleInputChange('location', e.target.value)}
+            placeholder="City, Country"
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>Email</label>
+          <input
+            type="email"
+            value={editData.email}
+            onChange={(e) => handleInputChange('email', e.target.value)}
+            placeholder="your.email@example.com"
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>Phone</label>
+          <input
+            type="tel"
+            value={editData.phone}
+            onChange={(e) => handleInputChange('phone', e.target.value)}
+            placeholder="+1 (555) 123-4567"
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>Website</label>
+          <input
+            type="url"
+            value={editData.website}
+            onChange={(e) => handleInputChange('website', e.target.value)}
+            placeholder="https://yourwebsite.com"
+          />
+        </div>
+        
+        <div className="form-group full-width">
+          <label>About</label>
+          <textarea
+            value={editData.about}
+            onChange={(e) => handleInputChange('about', e.target.value)}
+            placeholder="Tell us about yourself..."
+            rows={4}
+          />
+        </div>
+        
+        {/* Experience Section */}
+        <div className="form-section full-width">
+          <h4>Experience</h4>
+          {editData.experience.map((exp, index) => (
+            <div key={exp.id} className="form-row">
+              <input
+                type="text"
+                placeholder="Title"
+                value={exp.title}
+                onChange={(e) => handleExperienceChange(index, 'title', e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="Company"
+                value={exp.company}
+                onChange={(e) => handleExperienceChange(index, 'company', e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="Start Date"
+                value={exp.startDate}
+                onChange={(e) => handleExperienceChange(index, 'startDate', e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="End Date"
+                value={exp.endDate}
+                onChange={(e) => handleExperienceChange(index, 'endDate', e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="Location"
+                value={exp.location}
+                onChange={(e) => handleExperienceChange(index, 'location', e.target.value)}
+              />
+              <button
+                type="button"
+                className="btn-remove"
+                onClick={() => removeExperience(index)}
+              >
+                <FaTimes />
+              </button>
+            </div>
+          ))}
+          
+          <div className="form-row">
+            <input
+              type="text"
+              placeholder="Title"
+              value={editData.newExperience.title}
+              onChange={(e) => setEditData(prev => ({
+                ...prev,
+                newExperience: { ...prev.newExperience, title: e.target.value }
+              }))}
+            />
+            <input
+              type="text"
+              placeholder="Company"
+              value={editData.newExperience.company}
+              onChange={(e) => setEditData(prev => ({
+                ...prev,
+                newExperience: { ...prev.newExperience, company: e.target.value }
+              }))}
+            />
+            <input
+              type="text"
+              placeholder="Start Date"
+              value={editData.newExperience.startDate}
+              onChange={(e) => setEditData(prev => ({
+                ...prev,
+                newExperience: { ...prev.newExperience, startDate: e.target.value }
+              }))}
+            />
+            <input
+              type="text"
+              placeholder="End Date"
+              value={editData.newExperience.endDate}
+              onChange={(e) => setEditData(prev => ({
+                ...prev,
+                newExperience: { ...prev.newExperience, endDate: e.target.value }
+              }))}
+            />
+            <button
+              type="button"
+              className="btn-add"
+              onClick={addExperience}
+            >
+              <FaPlus /> Add
+            </button>
+          </div>
+        </div>
+        
+        {/* Education Section */}
+        <div className="form-section full-width">
+          <h4>Education</h4>
+          {editData.education.map((edu, index) => (
+            <div key={edu.id} className="form-row">
+              <input
+                type="text"
+                placeholder="School"
+                value={edu.school}
+                onChange={(e) => handleEducationChange(index, 'school', e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="Degree"
+                value={edu.degree}
+                onChange={(e) => handleEducationChange(index, 'degree', e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="Field of Study"
+                value={edu.field}
+                onChange={(e) => handleEducationChange(index, 'field', e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="Start Year"
+                value={edu.startYear}
+                onChange={(e) => handleEducationChange(index, 'startYear', e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="End Year"
+                value={edu.endYear}
+                onChange={(e) => handleEducationChange(index, 'endYear', e.target.value)}
+              />
+              <button
+                type="button"
+                className="btn-remove"
+                onClick={() => removeEducation(index)}
+              >
+                <FaTimes />
+              </button>
+            </div>
+          ))}
+          
+          <div className="form-row">
+            <input
+              type="text"
+              placeholder="School"
+              value={editData.newEducation.school}
+              onChange={(e) => setEditData(prev => ({
+                ...prev,
+                newEducation: { ...prev.newEducation, school: e.target.value }
+              }))}
+            />
+            <input
+              type="text"
+              placeholder="Degree"
+              value={editData.newEducation.degree}
+              onChange={(e) => setEditData(prev => ({
+                ...prev,
+                newEducation: { ...prev.newEducation, degree: e.target.value }
+              }))}
+            />
+            <input
+              type="text"
+              placeholder="Field of Study"
+              value={editData.newEducation.field}
+              onChange={(e) => setEditData(prev => ({
+                ...prev,
+                newEducation: { ...prev.newEducation, field: e.target.value }
+              }))}
+            />
+            <input
+              type="text"
+              placeholder="Start Year"
+              value={editData.newEducation.startYear}
+              onChange={(e) => setEditData(prev => ({
+                ...prev,
+                newEducation: { ...prev.newEducation, startYear: e.target.value }
+              }))}
+            />
+            <input
+              type="text"
+              placeholder="End Year"
+              value={editData.newEducation.endYear}
+              onChange={(e) => setEditData(prev => ({
+                ...prev,
+                newEducation: { ...prev.newEducation, endYear: e.target.value }
+              }))}
+            />
+            <button
+              type="button"
+              className="btn-add"
+              onClick={addEducation}
+            >
+              <FaPlus /> Add
+            </button>
+          </div>
+        </div>
+        
+        {/* Skills Section */}
+        <div className="form-section full-width">
+          <h4>Skills</h4>
+          <div className="skills-edit">
+            {editData.skills.map((skill, index) => (
+              <span key={index} className="skill-tag">
+                {skill}
+                <button
+                  type="button"
+                  className="skill-remove"
+                  onClick={() => removeSkill(index)}
+                >
+                  <FaTimes />
+                </button>
+              </span>
+            ))}
+          </div>
+          <div className="skill-input-container">
+            <input
+              type="text"
+              placeholder="Add a skill"
+              value={editData.newSkill}
+              onChange={(e) => handleInputChange('newSkill', e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && addSkill()}
+            />
+            <button
+              type="button"
+              className="btn-add-skill"
+              onClick={addSkill}
+            >
+              <FaPlus /> Add Skill
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div className="form-actions">
+        <button className="btn-save" onClick={handleSave} disabled={isUploading}>
+          {isUploading ? 'Saving...' : 'Save Changes'}
+        </button>
+        <button className="btn-cancel" onClick={() => {
+          setIsEditing(false);
+          if (imagePreview) {
+            URL.revokeObjectURL(imagePreview);
+            setImagePreview('');
+          }
+        }} disabled={isUploading}>
+          Cancel
+        </button>
+      </div>
     </div>
   );
 
@@ -657,13 +1017,21 @@ const Profile = () => {
               src={profileData.bannerImage || 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?ixlib=rb-1.2.1&auto=format&fit=crop&w=1600&q=80'} 
               alt="Banner" 
               className="banner-image"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?ixlib=rb-1.2.1&auto=format&fit=crop&w=1600&q=80';
+              }}
             />
             <div className="profile-image-container">
               <div className="profile-image-wrapper">
                 <img 
-                  src={isEditing && imagePreview ? imagePreview : profileData.profileImage} 
+                  src={isEditing && imagePreview ? imagePreview : (profileData.profileImage || 'https://via.placeholder.com/150')} 
                   alt={profileData.name}
                   className="profile-image"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = 'https://via.placeholder.com/150';
+                  }}
                 />
                 {isEditing && (
                   <div className="image-upload-container">
@@ -702,28 +1070,13 @@ const Profile = () => {
           
           <div className="profile-info">
             {isEditing ? (
-              <div className="edit-form">
-                <h3>Edit Profile Information</h3>
-                
-                <div className="form-grid">
-                  {/* ... (existing edit form code remains the same) ... */}
-                </div>
-                
-                <div className="form-actions">
-                  <button className="btn-save" onClick={handleSave} disabled={isUploading}>
-                    {isUploading ? 'Saving...' : 'Save Changes'}
-                  </button>
-                  <button className="btn-cancel" onClick={() => setIsEditing(false)} disabled={isUploading}>
-                    Cancel
-                  </button>
-                </div>
-              </div>
+              <EditForm />
             ) : (
               <>
-                <h1 className="profile-name">{profileData.name}</h1>
-                <p className="profile-headline">{profileData.headline}</p>
+                <h1 className="profile-name">{profileData.name || 'User Name'}</h1>
+                <p className="profile-headline">{profileData.headline || 'Your professional headline'}</p>
                 <div className="profile-location">
-                  <FaMapMarkerAlt /> {profileData.location}
+                  <FaMapMarkerAlt /> {profileData.location || 'Location not specified'}
                 </div>
                 {profileData.website && (
                   <div className="profile-website">
@@ -795,7 +1148,7 @@ const Profile = () => {
                 <div className="section-header">
                   <h3>About</h3>
                 </div>
-                <p>{profileData.about}</p>
+                <p>{profileData.about || 'No about information available.'}</p>
               </div>
 
               {/* Experience Section */}
@@ -803,14 +1156,18 @@ const Profile = () => {
                 <div className="section-header">
                   <h3><FaBuilding /> Experience</h3>
                 </div>
-                {profileData.experience.map((exp, index) => (
-                  <div key={index} className="experience-item">
-                    <h4>{exp.title}</h4>
-                    <p className="company">{exp.company}</p>
-                    <p className="duration">{exp.startDate} - {exp.endDate} · {exp.location}</p>
-                    {exp.description && <p className="description">{exp.description}</p>}
-                  </div>
-                ))}
+                {profileData.experience.length > 0 ? (
+                  profileData.experience.map((exp, index) => (
+                    <div key={exp.id || index} className="experience-item">
+                      <h4>{exp.title}</h4>
+                      <p className="company">{exp.company}</p>
+                      <p className="duration">{exp.startDate} - {exp.endDate} · {exp.location}</p>
+                      {exp.description && <p className="description">{exp.description}</p>}
+                    </div>
+                  ))
+                ) : (
+                  <p>No experience information available.</p>
+                )}
               </div>
 
               {/* Education Section */}
@@ -818,14 +1175,18 @@ const Profile = () => {
                 <div className="section-header">
                   <h3><FaGraduationCap /> Education</h3>
                 </div>
-                {profileData.education.map((edu, index) => (
-                  <div key={index} className="education-item">
-                    <h4>{edu.school}</h4>
-                    <p className="degree">{edu.degree} in {edu.field}</p>
-                    <p className="year">{edu.startYear} - {edu.endYear}</p>
-                    {edu.description && <p className="description">{edu.description}</p>}
-                  </div>
-                ))}
+                {profileData.education.length > 0 ? (
+                  profileData.education.map((edu, index) => (
+                    <div key={edu.id || index} className="education-item">
+                      <h4>{edu.school}</h4>
+                      <p className="degree">{edu.degree} in {edu.field}</p>
+                      <p className="year">{edu.startYear} - {edu.endYear}</p>
+                      {edu.description && <p className="description">{edu.description}</p>}
+                    </div>
+                  ))
+                ) : (
+                  <p>No education information available.</p>
+                )}
               </div>
 
               {/* Skills Section */}
@@ -834,9 +1195,13 @@ const Profile = () => {
                   <h3>Skills</h3>
                 </div>
                 <div className="skills-container">
-                  {profileData.skills.map((skill, index) => (
-                    <span key={index} className="skill-tag">{skill}</span>
-                  ))}
+                  {profileData.skills.length > 0 ? (
+                    profileData.skills.map((skill, index) => (
+                      <span key={index} className="skill-tag">{skill}</span>
+                    ))
+                  ) : (
+                    <p>No skills added yet.</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -861,13 +1226,18 @@ const Profile = () => {
                   <button 
                     className="ai-feature-btn"
                     onClick={generateProfileSummary}
-                    disabled={isSummarizing}
+                    disabled={isSummarizing || !isSpeechSupported}
                   >
                     <FaRobot /> {isSummarizing ? 'Generating...' : 'Listen to Profile'}
                   </button>
                   <p className="ai-description">
                     Get an AI-generated podcast-style summary of your profile
                   </p>
+                  {!isSpeechSupported && (
+                    <p className="speech-warning-small">
+                      Text-to-speech not supported in your browser
+                    </p>
+                  )}
                 </div>
               </div>
               
